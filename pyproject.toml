@@ -1,0 +1,34 @@
+[project]
+name = "pyaio"
+authors = [
+  { name="Johannes Willkomm", email="jwillkomm@ai-and-it.de" },
+]
+description = "AIO for Python"
+# readme = "README.rst"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = []
+dynamic = ["version"]
+
+[project.optional-dependencies]
+build = ["build"]
+test = ["pytest", "tox"]
+all = ["build", "pytest", "tox"]
+
+[project.urls]
+"Homepage" = "https://github.com/aiandit/pyaio"
+"Bug Tracker" = "https://github.com/aiandit/pyaio/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+#[project.scripts]
+#msgl = "pyaio.cmdline:run"
+
+[tool.hatch.version]
+path = "pyaio/__init__.py"
