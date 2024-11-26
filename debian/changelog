@@ -1,0 +1,6 @@
+pyaio (24.11.1-1) unstable; urgency=medium
+
+  * Debian pkg of version 3.9.0 of pyaio
+  * https://github.com/aiandit/pyaio
+
+ -- Johannes Willkomm <johannes.willkomm@googlemail.com>  Tue, 26 Nov 2024 23:04:35 +0100

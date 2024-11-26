@@ -1,0 +1,15 @@
+Source: pyaio
+Section: misc
+Priority: optional
+Maintainer: Johannes Willkomm <j.willkomm@ai-and-it.de>
+Build-Depends: debhelper-compat (= 13), dh-python, python3-all,
+ python3-build, pybuild-plugin-pyproject, python3-pytest
+Standards-Version: 4.5.1
+Homepage: https://ai-and-it.de/
+Rules-Requires-Root: no
+
+Package: python3-pyaio
+Architecture: all
+Depends: ${python3:Depends}, ${misc:Depends}, python3
+Description: pyaio Python package
+ Debian package for pyaio https://github.com/aiandit/pyaio
