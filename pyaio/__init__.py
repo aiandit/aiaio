@@ -1,3 +1,3 @@
-__version__ = '0.1.0'
+__version__ = '24.11.1'
 
 #from pyaio import AIOFile
