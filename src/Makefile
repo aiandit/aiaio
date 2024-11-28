@@ -1,2 +1,2 @@
 all:
-	$(CC) -shared -g -o libmyaio.so libaiotest.c
+	$(CXX) -fPIC -shared -g -laio -o libmyaio.so libaiotest.cc

@@ -1,3 +1,3 @@
-__version__ = '24.11.1'
+__version__ = '24.11.29'
 
-#from pyaio import AIOFile
+from .pyaio import AIOFile, LineReader

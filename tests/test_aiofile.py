@@ -1,5 +1,6 @@
 import asyncio
 import pytest
+import pytest_asyncio
 
 import os
 import sys
@@ -9,19 +10,23 @@ import binascii
 
 sys.path = ['.'] + sys.path
 
-async def aenumerate(asequence, start=0):
-    """Asynchronously enumerate an async iterator from a given start value"""
-    n = start
-    async for elem in asequence:
-        yield n, elem
-        n += 1
+from pyaio import AIOFile, LineReader
+from pyaio import aio as aiomodule
+from pyaio.pyaio import aenumerate
 
-from pyaio import pyaio
+
+# cf. https://stackoverflow.com/questions/77242992/pytest-asyncio-howto-await-in-setup-and-teardown
+@pytest_asyncio.fixture(loop_scope="class", scope="class")
+async def per_class_fixture():
+    yield True
+    print('per_class_fixture release global context')
+    await aiomodule.global_context.release()
+
 
 @pytest.mark.asyncio(loop_scope="class")
-class TestCases1:
+class TestCases1():
 
-    async def test_upper(self):
+    async def test_upper(self, per_class_fixture):
         assert 'foo'.upper() == 'FOO'
 
     async def test_isupper(self):
@@ -32,8 +37,8 @@ class TestCases1:
         s = 'hello world'
         assert s.split() == ['hello', 'world']
 
-    async def test_aiofile1(self):
-        async with pyaio.AIOFile('example.txt', 'r+') as aio:
+    async def test_aiofile01(self):
+        async with AIOFile('example.txt', 'r+') as aio:
 
             print('opened example.txt')
 
@@ -48,8 +53,8 @@ class TestCases1:
             tasks = [ aio.write(i.to_bytes(4) + data, offset=19 + (i+1)*len(data)) for i in range(5000) ]
             results = await asyncio.gather(*tasks)
 
-    async def test_aiofile2(self):
-        async with pyaio.AIOFile('example.txt', 'r+') as aio:
+    async def test_aiofile02(self):
+        async with AIOFile('example.txt', 'r+') as aio:
 
             print('opened example.txt')
 
@@ -60,8 +65,8 @@ class TestCases1:
         for i in range(len(results)):
             assert int().from_bytes(results[i][0:4]) == i
 
-    async def test_aiofile3(self):
-        aio = pyaio.AIOFile('example.txt', 'r+')
+    async def test_aiofile03(self):
+        aio = AIOFile('example.txt', 'r+')
 
         await aio.open()
         print('opened example.txt')
@@ -73,8 +78,8 @@ class TestCases1:
         await aio.close()
         del aio
 
-    async def test_aiofile4(self):
-        aio = pyaio.AIOFile('example.txt', 'r+')
+    async def test_aiofile04(self):
+        aio = AIOFile('example.txt', 'r+')
 
         await aio.open()
         print('opened example.txt')
@@ -90,9 +95,9 @@ class TestCases1:
         for i in range(len(results)):
             assert int().from_bytes(results[i][0:4]) == i
 
-    async def test_aiofile5(self):
-        aio1 = pyaio.AIOFile('example1.txt', 'w')
-        aio2 = pyaio.AIOFile('example2.txt', 'w')
+    async def test_aiofile05(self):
+        aio1 = AIOFile('example1.txt', 'w')
+        aio2 = AIOFile('example2.txt', 'w')
 
         await aio1.open()
         await aio2.open()
@@ -104,14 +109,15 @@ class TestCases1:
         await aio2.fsync()
         print('fsyncs returned!')
         results = await asyncio.gather(*(tasks1 + tasks2))
+        print('closing!')
         await aio1.close()
         await aio2.close()
         del aio1
         del aio2
 
-    async def test_aiofile6(self):
-        aio1 = pyaio.AIOFile('example1.txt', 'r+')
-        aio2 = pyaio.AIOFile('example2.txt', 'r+')
+    async def test_aiofile06(self):
+        aio1 = AIOFile('example1.txt', 'r+')
+        aio2 = AIOFile('example2.txt', 'r+')
 
         await aio1.open()
         await aio2.open()
@@ -130,39 +136,70 @@ class TestCases1:
         for i in range(len(results)):
             assert int().from_bytes(results[i][0:4]) == i % 5000
 
-    async def test_aiofile7(self):
-        async with pyaio.AIOFile('lines.txt', 'r+') as aio:
-            lread = pyaio.LineReader(aio)
+    async def test_aiofile07(self):
+        async with AIOFile('lines.txt', 'r+') as aio:
+            lread = LineReader(aio)
             async for line in lread:
                 print(f'line {line}')
 
 
-    async def test_aiofile8(self):
+    async def test_aiofile08(self):
         lines = [ binascii.b2a_base64(os.urandom(1 << 4)) for i in range(100) ]
-        async with pyaio.AIOFile('lines.txt', 'r+') as aio:
+        async with AIOFile('lines.txt', 'r+') as aio:
             await aio.truncate()
             lens = [len(l) for l in lines]
             tasks = [aio.write(l, offset=sum(lens[0:i])) for i, l in enumerate(lines)]
             await asyncio.gather(*tasks)
 
-        async with pyaio.AIOFile('lines.txt', 'r+') as aio:
-            lread = pyaio.LineReader(aio)
+        async with AIOFile('lines.txt', 'r+') as aio:
+            lread = LineReader(aio)
             async for i, line in aenumerate(lread):
                 print(f'line {i}, {line}')
                 if i == 100:
                     assert line == b''
 
-    async def test_aiofile9(self):
+    async def test_aiofile09(self):
         lines = [ binascii.b2a_base64(os.urandom(1 << 4)) for i in range(100) ] + [b'Incomplete']
-        async with pyaio.AIOFile('lines.txt', 'r+') as aio:
+        async with AIOFile('lines.txt', 'r+') as aio:
             await aio.truncate()
             lens = [len(l) for l in lines]
             tasks = [aio.write(l, offset=sum(lens[0:i])) for i, l in enumerate(lines)]
             await asyncio.gather(*tasks)
 
-        async with pyaio.AIOFile('lines.txt', 'r+') as aio:
-            lread = pyaio.LineReader(aio)
+        async with AIOFile('lines.txt', 'r+') as aio:
+            lread = LineReader(aio)
             async for i, line in aenumerate(lread):
                 print(f'line {i}, {line}')
                 if i == 100:
                     assert line == b'Incomplete'
+
+    async def test_aiofile10(self):
+        lines = [ binascii.b2a_base64(os.urandom(1 << 4)) for i in range(100) ] + [b'Incomplete']
+        async with AIOFile('example1.txt', 'r+') as aio:
+            await aio.fsync()
+        async with AIOFile('example1.txt', 'r+') as aio:
+            await aio.fsync()
+            await aio.truncate()
+
+
+@pytest.mark.asyncio(loop_scope="class")
+class TestCases2:
+
+    async def test_upper(self, per_class_fixture):
+        assert 'foo'.upper() == 'FOO'
+
+    async def test_aiofile01(self):
+        async with AIOFile('example.txt', 'r+') as aio:
+
+            print('opened example.txt')
+
+            r1 = aio.read(8, offset=0)
+            print('first read started', r1)
+            res = await r1
+            print('read result', res)
+
+            assert len(res) == 8
+
+            data = b'Testa Testb testc\r\n'
+            tasks = [ aio.write(i.to_bytes(4) + data, offset=19 + (i+1)*len(data)) for i in range(50) ]
+            results = await asyncio.gather(*tasks)

@@ -1,18 +1,20 @@
 from ctypes import c_int, c_uint8, c_int32, c_int64, c_uint64, c_voidp
 from ctypes import CDLL, pointer, POINTER, Structure, CFUNCTYPE
 import errno
-import signal
 import time
-import enum
 import sys
 import asyncio
-import argparse
-import threading
-import binascii
-import os
 
-from . import __version__
-from .aio import AIO, O_SYNC, O_DSYNC
+from .aio import AIO
+
+
+async def aenumerate(asequence, start=0):
+    """Asynchronously enumerate an async iterator from a given start value"""
+    n = start
+    async for elem in asequence:
+        yield n, elem
+        n += 1
+
 
 class AIOFile:
 
@@ -58,8 +60,11 @@ class AIOFile:
             data = data.decode(self.encoding)
         return data
 
-    async def fsync(self, op=O_SYNC, offset=0):
-        return await self._file.fsync(op)
+    async def fsync(self, offset=0):
+        return await self._file.fsync()
+
+    async def fdsync(self, offset=0):
+        return await self._file.fdsync()
 
     async def truncate(self):
         return self._file._file.truncate()
@@ -102,10 +107,13 @@ class LineReader:
 
 
 def mkparser(parser=None):
+    from . import __version__
+    import argparse
     if parser is None:
         parser = argparse.ArgumentParser()
 
-    parser.add_argument('-o', '--output', metavar='file', type=str, nargs='+')
+    parser.add_argument('input', metavar='file', type=str)
+    parser.add_argument('-o', '--output', metavar='file', type=str)
     parser.add_argument('-a', '--append', action="store_true")
     parser.add_argument('-e', '--encoding', metavar='S', type=str)
 
@@ -116,28 +124,27 @@ def mkparser(parser=None):
 
 
 async def arun(args=None):
+    import binascii
+    import os
     if args is None:
         parser = mkparser()
         args = parser.parse_args()
 
-    async with AIOFile('test.txt', 'r+') as aio:
+    infile = args.input
+    outfile = args.output if args.output else args.input
 
-        print('opened test.txt')
+    async with AIOFile(infile, 'r+', numRequests=5001) as aio:
+        tasks = [aio.read(8, offset=i*8) for i in range(5000)]
+        reads = await asyncio.gather(*tasks)
 
-        r1 = aio.read(8, offset=0)
-        print('first read started', r1)
-        res = await r1
-        print('read result', res)
-        await asyncio.sleep(0.1)
-        data = b'Testa Testb testc\r\n'
-        data = binascii.b2a_base64(os.urandom(1 << 10), newline=False) + b'\r\n'
-        res2 = await aio.write(data, offset=19)
-        print('write result', res2)
-        await asyncio.sleep(0.1)
+    lns = [len(r) for r in reads]
 
-        tasks = [ aio.write(data, offset=19 + (i+1)*len(data)) for i in range(5000) ]
-        await asyncio.gather(*tasks)
+    async with AIOFile(outfile, 'w+', numRequests=5001) as aio:
+        tasks = [aio.write(r, offset=sum(lns[0:i])) for i, r in enumerate(reads)]
+        writes = await asyncio.gather(*tasks)
+        print('Tasks complete')
 
+    print('Tasks complete, closed')
 
 def run(args=None):
     asyncio.run(arun(args))
