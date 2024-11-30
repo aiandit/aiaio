@@ -248,12 +248,10 @@ class IOContext:
             dentry['code'] = res
             dentry['cond'].notify()
         del self._readsDict[cbid]
-        return 0
 
     async def notify_cbcomplete_list_task(self, evlist):
-        tasks = [self.notify_cbcomplete_task(*entry) for entry in evlist]
-        await asyncio.gather(*tasks)
-        return 0
+        async with asyncio.TaskGroup() as gr:
+            [gr.create_task(self.notify_cbcomplete_task(*entry)) for entry in evlist]
 
     async def start_aio_suspend_loop(self):
         self._loops += 1
