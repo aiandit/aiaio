@@ -20,7 +20,7 @@ from pyaio.pyaio import aenumerate
 async def per_class_fixture():
     yield True
     print('per_class_fixture release global context')
-    await aiomodule.global_context.release()
+    await aiomodule.release_globals()
 
 
 @pytest.mark.asyncio(loop_scope="class")
@@ -174,7 +174,6 @@ class TestCases1():
                     assert line == b'Incomplete'
 
     async def test_aiofile10(self):
-        lines = [ binascii.b2a_base64(os.urandom(1 << 4)) for i in range(100) ] + [b'Incomplete']
         async with AIOFile('example1.txt', 'r+') as aio:
             await aio.fsync()
         async with AIOFile('example1.txt', 'r+') as aio:
@@ -238,3 +237,16 @@ class TestCases2:
             [tg.create_task(i.release()) for i in ioctx]
 
         [os.unlink(fn) for fn in filenames]
+
+
+@pytest.mark.asyncio(loop_scope="class")
+class TestCases3:
+
+    async def test_upper(self, per_class_fixture):
+        assert 'foo'.upper() == 'FOO'
+
+    async def test_aiofile01(self):
+        async with AIOFile('example1.txt', 'r+', numRequests=100) as aio1:
+            r1 = await aio1.read(8, offset=0)
+        async with AIOFile('example2.txt', 'r+', numRequests=10000) as aio2:
+            r2 = await aio2.read(8, offset=0)

@@ -1,5 +1,3 @@
-from ctypes import c_int, c_uint8, c_int32, c_int64, c_uint64, c_voidp
-from ctypes import CDLL, pointer, POINTER, Structure, CFUNCTYPE
 import errno
 import time
 import sys
