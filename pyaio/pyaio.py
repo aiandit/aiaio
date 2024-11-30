@@ -24,10 +24,10 @@ class AIOFile:
 
     def __del__(self):
         if self.fileno() != -1:
-            raise BaseException(f'AIOFile {self} was not properly closed: {self.fileno()}!')
+            raise BaseException(f'{self} was not properly closed: {self.fileno()}!')
 
     def __str__(self):
-        return f'AIOF({self._file}, {self.encoding})'
+        return f'AIOFile({self._file}, {self.encoding})'
 
     def fileno(self):
         return self._file.fileno()
@@ -40,14 +40,10 @@ class AIOFile:
         return await self.close()
 
     async def open(self):
-        #print(f'{self} opening {self._file._fname}')
         await self._file.start()
-        #print(f'{self} opened: {self.fileno()}')
 
     async def close(self):
-        #print(f'{self} closing {self._file._fname} ({self.fileno()})')
         await self._file.release()
-        #print(f'{self} closed')
 
     async def write(self, data, offset=0):
         if self.encoding:
@@ -142,9 +138,7 @@ async def arun(args=None):
     async with AIOFile(outfile, 'w+', numRequests=5001) as aio:
         tasks = [aio.write(r, offset=sum(lns[0:i])) for i, r in enumerate(reads)]
         writes = await asyncio.gather(*tasks)
-        print('Tasks complete')
 
-    print('Tasks complete, closed')
 
 def run(args=None):
     asyncio.run(arun(args))
