@@ -274,27 +274,22 @@ class AIO:
     _fname = None
     _mode = None
     _verbose = 0
-    _own_ctx = False
 
-    def __init__(self, fname, mode, numRequests=10000, **kw):
+    def __init__(self, fname, mode, numRequests=10000, io_context=None, **kw):
         global global_context
         self._fname = fname
         self._mode = mode
         self._opts = kw
-        if True:
+        if io_context is not None:
+            self.ctx = io_context
+        else:
             if numRequests > global_context.numRequests:
-                print(f'Larger context: {numRequests}')
                 global_context = IOContext(numRequests)
             self.ctx = global_context
-        else:
-            self.ctx = IOContext(numRequests)
-            self._own_ctx = True
 
     def __del__(self):
         if self._file:
             self._file.close()
-        if self._own_ctx:
-            self.ctx.closectx()
 
     def __str__(self):
         return f'AIO(fd={self.fileno()}, {self._fname}, {self._mode}, {self.ctx})'
@@ -377,8 +372,6 @@ class AIO:
         if self._file:
             self._file.close()
         self._file = None
-        if self._own_ctx:
-            await self.ctx.release()
 
 
 def mkparser(parser=None):
