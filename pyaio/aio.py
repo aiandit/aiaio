@@ -34,8 +34,8 @@ def getename(c):
 class TIMESPEC(Structure):
     _pack_ = 1
     _fields_ = [
-        ("tv_sec", c_uint64),              # + 4
-        ("tv_nsec", c_uint64),             # + 4
+        ("tv_sec", c_uint64),           # + 8
+        ("tv_nsec", c_uint64),          # + 8
         ]
 
 
@@ -83,7 +83,7 @@ class IO_EVENT(Structure):
         ("data", c_uint64),             # + 8
         ("obj", POINTER(IOCB)),         # + 8
         ("res", c_int64),               # + 8
-        ("res2", c_int64),              # + 8
+        ("res2", c_int64),              # + 8 == 0x20
         ]
 
 
@@ -151,8 +151,9 @@ class IOContext:
     _task = None
     _loop = None
     _loops = 0
+    _name = None
 
-    def __init__(self, numRequests=10000):
+    def __init__(self, numRequests=10000, name=None):
         self.numRequests = numRequests
         self._ctx = IO_CONTEXT()
         rc = libaio.io_setup(numRequests, self._ctx)
@@ -162,6 +163,9 @@ class IOContext:
         self._task = None
         IOContext._id += 1
         self._id = IOContext._id
+        if name is None:
+            name = f'ioctx-{self._id}'
+        self._name = name
 
     def __del__(self):
         assert self._task is None
@@ -177,10 +181,10 @@ class IOContext:
                 raise OSError(f'io_destroy: {getename(-rc)}')
 
     def __str__(self):
-        return f'IOContext({self.numRequests}, {self._id})'
+        return f'IOContext({self._name}, n={self.numRequests})'
 
     def __repr__(self):
-        return f'IOContext({self.numRequests}, {bytes(self._ctx).hex()})'
+        return f'IOContext({self._name}, n={self.numRequests}, {bytes(self._ctx).hex()})'
 
     def log(self, msg):
         print(f'{time.time() - global_t0: 12.3f} {self} {msg}')
@@ -265,6 +269,13 @@ class IOContext:
     async def release(self):
         self.releaseThread()
 
+    async def __aenter__(self):
+        await self.start()
+        return self
+
+    async def __aexit__(self, *args):
+        return await self.release()
+
 
 global_context = IOContext(1000)
 
@@ -304,7 +315,6 @@ class AIO:
     def _read(self, n, offset=0):
         indata = (c_uint8 * n)()
         cb = IOCB()
-        #self._showcb(cb)
         cb.aio_fildes = self._file.fileno()
         # cb.aio_lio_opcode = IO_CMD_PREAD == 0
         cb.uc.buf = indata
@@ -326,7 +336,6 @@ class AIO:
         indata = (c_uint8 * n)()
         indata[0:n] = data
         cb = IOCB()
-        #self._showcb(cb)
         cb.aio_fildes = self._file.fileno()
         cb.aio_lio_opcode = IO_CMD_PWRITE
         cb.uc.buf = indata
