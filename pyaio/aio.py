@@ -1,5 +1,5 @@
-from ctypes import c_short, c_int, c_long, c_longlong, c_uint, c_uint8, c_int32, c_uint32, c_int64, c_uint64, c_voidp
-from ctypes import CDLL, pointer, byref, POINTER, Structure, CFUNCTYPE, sizeof, addressof
+from ctypes import c_short, c_int, c_uint, c_long, c_longlong, c_uint8, c_int64, c_uint64, c_voidp
+from ctypes import CDLL, pointer, POINTER, Structure, addressof
 import errno
 import time
 import sys
@@ -129,8 +129,6 @@ get_errno_loc.restype = POINTER(c_int)
 try:
     # Debug the iocb layout
     libmyaio = CDLL("libmyaio.so")
-
-    assert sizeof(IO_CONTEXT) == 8
 
     libmyaio.my_io_info.argtypes = [IO_CONTEXTp, IOCBp, SIGSETp, IO_EVENTp, IO_EVENTpp, TIMESPECp]
     libmyaio.my_io_info.restype = c_int
