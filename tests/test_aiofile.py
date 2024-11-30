@@ -191,8 +191,6 @@ class TestCases2:
     async def test_aiofile01(self):
         async with AIOFile('example.txt', 'r+') as aio:
 
-            print('opened example.txt')
-
             r1 = aio.read(8, offset=0)
             print('first read started', r1)
             res = await r1
@@ -204,7 +202,6 @@ class TestCases2:
             tasks = [ aio.write(i.to_bytes(4) + data, offset=19 + (i+1)*len(data)) for i in range(50) ]
             results = await asyncio.gather(*tasks)
 
-
     async def test_aiofile02(self):
         async with IOContext(10000, name='Testctx1') as ioctx:
             filenames = [f'example{i:02d}.txt' for i in range(100)]
@@ -214,7 +211,6 @@ class TestCases2:
                 [tg.create_task(f.open()) for f in files]
 
             #[print(f) for f in files]
-
             async with asyncio.TaskGroup() as tg:
                 for count in range(10):
                     [tg.create_task(f.write(os.urandom(1<<7), offset=(1<<7)*count)) for f in files]
@@ -225,7 +221,6 @@ class TestCases2:
             [os.unlink(fn) for fn in filenames]
 
     async def test_aiofile03(self):
-
         filenames = [f'example{i:02d}.txt' for i in range(100)]
         ioctx = [IOContext(15) for fname in filenames]
         files = [AIOFile(fname, 'w+', io_context=ioctx) for fname, ioctx in zip(filenames, ioctx)]
@@ -234,7 +229,6 @@ class TestCases2:
             [tg.create_task(f.open()) for f in files]
 
         #[print(f) for f in files]
-
         async with asyncio.TaskGroup() as tg:
             for count in range(10):
                 [tg.create_task(f.write(os.urandom(1<<7), offset=(1<<7)*count)) for f in files]
