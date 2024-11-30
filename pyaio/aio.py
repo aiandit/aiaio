@@ -119,13 +119,6 @@ libaio.sigdelset.argtypes = [SIGSETp, c_int]
 libaio.sigprocmask.argtypes = [c_int, SIGSETp, SIGSETp]
 
 
-# https://stackoverflow.com/questions/661017/access-to-errno-from-python#661303
-libc = CDLL("libc.so.6")
-
-get_errno_loc = libc.__errno_location
-get_errno_loc.restype = POINTER(c_int)
-
-
 try:
     # Debug the iocb layout
     libmyaio = CDLL("libmyaio.so")
@@ -163,7 +156,6 @@ class IOContext:
         self.numRequests = numRequests
         self._ctx = IO_CONTEXT()
         rc = libaio.io_setup(numRequests, self._ctx)
-        print(f'io_setup: {getename(-rc)}')
         if rc < 0:
             raise OSError(f'io_setup: {getename(-rc)}')
         self._readsDict = {}
@@ -200,9 +192,8 @@ class IOContext:
             self.log(f'Error io_submit: {rc} {getename(-rc)}')
             raise OSError(f'io_submit: {getename(-rc)}')
         if rc == 1:
-            self._readsDict[id(cb)] = item = dict(cb=cb,cond=asyncio.Condition())
-            if self._verbose:
-                self.log(f'io_submit added task {id(cb):#x}: fd {cb.aio_fildes}, cmd {cb.aio_lio_opcode}')
+            cbid = addressof(cb)
+            self._readsDict[cbid] = item = dict(cb=cb,cond=asyncio.Condition())
             return item
         else:
             self.log(f'io_submit returned wrong code: {rc}')
@@ -214,14 +205,12 @@ class IOContext:
         timeout = TIMESPEC() # == 0
         sigmask = SIGSET()
         libaio.sigfillset(sigmask)
-        tries = 0
 
         while True:
             rc = libaio.io_pgetevents(self._ctx, 1, nevents, events, timeout, sigmask)
             if rc > 0:
-                evlist = [(events[i].obj.contents.data, events[i].res, events[i].res2) for i in range(rc)]
+                evlist = [(addressof(events[i].obj.contents), events[i].res, events[i].res2) for i in range(rc)]
                 await self.notify_cbcomplete_list_task(evlist)
-                tries = 0
             elif rc < 0:
                 self.log(f'Error io_pgetevents: {rc} {getename(-rc)}')
                 raise OSError(f'io_pgetevents: {getename(-rc)}')
@@ -237,7 +226,7 @@ class IOContext:
             if self._verbose:
                 self.log(f'task pgetevents cancelled')
         except Exception as ex:
-            self.log(f'task pgetevents raise exception')
+            self.log(f'task pgetevents raise exception {ex}')
             raise ex
 
     async def notify_cbcomplete_task(self, cbid, res, res2):
@@ -269,10 +258,7 @@ class IOContext:
 
     def releaseThread(self):
         if self._task is not None:
-            try:
-                self._task.cancel()
-            except RuntimeError:
-                pass
+            self._task.cancel()
             self._task = None
         self._loop = None
 
@@ -325,7 +311,6 @@ class AIO:
         cb = IOCB()
         #self._showcb(cb)
         cb.aio_fildes = self._file.fileno()
-        cb.data = id(cb)
         # cb.aio_lio_opcode = IO_CMD_PREAD == 0
         cb.uc.buf = indata
         cb.uc.nbytes = n
@@ -348,7 +333,6 @@ class AIO:
         cb = IOCB()
         #self._showcb(cb)
         cb.aio_fildes = self._file.fileno()
-        cb.data = id(cb)
         cb.aio_lio_opcode = IO_CMD_PWRITE
         cb.uc.buf = indata
         cb.uc.nbytes = n
@@ -366,7 +350,6 @@ class AIO:
             raise BaseException('File closed already')
         cb = IOCB()
         cb.aio_fildes = self._file.fileno()
-        cb.data = id(cb)
         cb.aio_lio_opcode = op
         return self.ctx._io_submit(cb)
 
