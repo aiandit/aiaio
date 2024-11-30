@@ -31,13 +31,6 @@ def getename(c):
     return errno.errorcode[c]
 
 
-async def find_task_by_name(task_name):
-    for task in asyncio.all_tasks():
-        if task.get_name().startswith(task_name):
-            return task
-    return None
-
-
 class TIMESPEC(Structure):
     _pack_ = 1
     _fields_ = [
@@ -45,17 +38,20 @@ class TIMESPEC(Structure):
         ("tv_nsec", c_uint64),             # + 4
         ]
 
+
 class SIGSET(Structure):
     _pack_ = 1
     _fields_ = [
         ("buf", c_uint8*0x80),          # + 0x80
         ]
 
+
 class IO_CONTEXT(Structure):
     _pack_ = 1
     _fields_ = [
         ("buf", c_voidp),               # + 8
         ]
+
 
 class IOCB_COMMON(Structure):
     _pack_ = 1
@@ -66,11 +62,6 @@ class IOCB_COMMON(Structure):
         ("_pad3", c_longlong),          # + 8
         ("_pad4", c_longlong),          # + 8 == 0x28
         ]
-    def __str__(self):
-        res = f'IOCB_COMMON@{id(self):#x}({self.buf},\n {self.nbytes},\n {self.offset})'
-        if self.buf:
-            res += f'\n  buf: {bytes(self.buf[0:self.nbytes])}'
-        return res
 
 
 class IOCB(Structure):
@@ -82,25 +73,19 @@ class IOCB(Structure):
         ("aio_lio_opcode", c_short),    # + 2 == 0x12
         ("aio_reqprio", c_short),       # + 2 == 0x14
         ("aio_fildes", c_int),          # + 4 == 0x18
-        ("uc", IOCB_COMMON),            # + 0x30 == 0x48
+        ("uc", IOCB_COMMON),            # + 0x28 == 0x40
         ]
-    def __str__(self):
-        return f'IOCB@{id(self):#x}({self.data:#x},\n {self.key},\n {self.aio_lio_opcode},\n fd={self.aio_fildes},\n {self.uc})'
+
 
 class IO_EVENT(Structure):
     _pack_ = 1
     _fields_ = [
         ("data", c_uint64),             # + 8
-        ("obj", POINTER(IOCB)),        # + 8
-        ("res", c_int64),              # + 8
-        ("res2", c_int64),             # + 8
+        ("obj", POINTER(IOCB)),         # + 8
+        ("res", c_int64),               # + 8
+        ("res2", c_int64),              # + 8
         ]
 
-    def __str__(self):
-        res = f'IO_EVENT[{sizeof(self)}@{id(self):#x}]({self.data:#x},\n {self.obj},\n {self.res},\n {self.res2})'
-        if self.obj:
-            res += f'\n  obj: {self.obj.contents}'
-        return res
 
 TIMESPECp = POINTER(TIMESPEC)
 SIGSETp = POINTER(SIGSET)
@@ -142,7 +127,7 @@ get_errno_loc.restype = POINTER(c_int)
 
 
 try:
-    # Debug the aiocb layout
+    # Debug the iocb layout
     libmyaio = CDLL("libmyaio.so")
 
     assert sizeof(IO_CONTEXT) == 8
@@ -163,11 +148,7 @@ try:
         libmyaio.my_io_event_info(event)
 
 except BaseException as ex:
-    #print('debug', ex)
     pass
-
-
-global_task = None
 
 
 class IOContext:
@@ -176,7 +157,6 @@ class IOContext:
     _id = 0
     _maxbatch = 1000
     _verbose = 0
-    _tgrp = None
     _task = None
     _loop = None
     _loops = 0
@@ -190,8 +170,6 @@ class IOContext:
             raise OSError(f'io_setup: {getename(-rc)}')
         self._readsDict = {}
         self._task = None
-        self._tgrp = None
-        self._thr_stop = False
         IOContext._id += 1
         self._id = IOContext._id
 
@@ -235,19 +213,13 @@ class IOContext:
     async def run_getevents_loop1(self):
         nevents = self._maxbatch
         events = (IO_EVENT * nevents)()
-        timeout = TIMESPEC()
-        timeout.tv_sec = 0
-        timeout.tv_nsec = 0 * int(1e6) # ms
+        timeout = TIMESPEC() # == 0
         sigmask = SIGSET()
         libaio.sigfillset(sigmask)
         tries = 0
 
-        while not self._thr_stop:
-            if self._verbose:
-                self.log(f'io_pgetevents loop')
-            rc = libaio.io_getevents(self._ctx, 1, nevents, events, timeout)
-            if self._verbose:
-                self.log(f'io_pgetevents got {rc} events')
+        while True:
+            rc = libaio.io_pgetevents(self._ctx, 1, nevents, events, timeout, sigmask)
             if rc > 0:
                 evlist = [(events[i].obj.contents.data, events[i].res, events[i].res2) for i in range(rc)]
                 await self.notify_cbcomplete_list_task(evlist)
@@ -256,12 +228,7 @@ class IOContext:
                 self.log(f'Error io_pgetevents: {rc} {getename(-rc)}')
                 raise OSError(f'io_pgetevents: {getename(-rc)}')
             elif rc == 0:
-                if not self._thr_stop:
-                    await asyncio.sleep(1e-3)
-                else:
-                    self.log(f'io_pgetevents stop set!')
-            if self._verbose:
-                self.log(f'io_pgetevents slept a little')
+                await asyncio.sleep(1e-3)
         if self._verbose:
             self.log(f'task io_pgetevents exiting')
 
@@ -276,15 +243,11 @@ class IOContext:
             raise ex
 
     async def notify_cbcomplete_task(self, cbid, res, res2):
-        if self._verbose:
-            self.log(f'io_pgetevents event notify {cbid:#x}')
         dentry = self._readsDict[cbid]
         async with dentry['cond']:
             dentry['code'] = res
             dentry['cond'].notify()
         del self._readsDict[cbid]
-        if self._verbose:
-            self.log(f'io task {cbid:#x} completed, {len(self._readsDict)} io tasks remain')
         return 0
 
     async def notify_cbcomplete_list_task(self, evlist):
@@ -293,21 +256,15 @@ class IOContext:
         return 0
 
     async def start_aio_suspend_loop(self):
-        global global_task
         self._loops += 1
         if self._loop:
             if self._loop != asyncio.get_event_loop():
-                print('Loop has changed!')
-                self._tgrp = None
+                if self._verbose:
+                    print('Loop has changed!')
                 self._task = None
-        self._thr_stop = False
         self._loop = asyncio.get_event_loop()
-        if self._tgrp is None:
-            self._tgrp = asyncio.TaskGroup()
-            await self._tgrp.__aenter__()
         if self._task is None:
-            self._task = self._tgrp.create_task(self.run_getevents_loop(), name=f'getevents-l{self._loops}-{id(self._loop):#x}')
-            global_task = self._task
+            self._task = asyncio.create_task(self.run_getevents_loop())
             if self._verbose:
                 self.log(f'io_pgetevents task starting')
 
@@ -315,22 +272,16 @@ class IOContext:
         await self.start_aio_suspend_loop()
 
     def releaseThread(self):
-        if self._verbose:
-            self.log('releaseThread')
         if self._task is not None:
-            self._thr_stop = True
             try:
                 self._task.cancel()
             except RuntimeError:
                 pass
             self._task = None
-        self._tgrp = None
         self._loop = None
 
     async def release(self):
         self.releaseThread()
-        if self._verbose:
-            self.log(f'IOContext release complete!')
 
 
 global_context = IOContext(1000)
@@ -345,7 +296,6 @@ class AIO:
 
     def __init__(self, fname, mode, numRequests=10000, **kw):
         global global_context
-        self._readsDict = {}
         self._fname = fname
         self._mode = mode
         self._opts = kw
@@ -443,18 +393,9 @@ class AIO:
         await self.ctx.start()
         if self._file is None:
             self._file = open(self._fname, self._mode)
-            if self._verbose:
-                self.log(f'opened file handle')
-        else:
-            if self._verbose:
-                self.log('File was opened already')
 
     async def release(self):
-        if self._verbose:
-            self.log('release')
         if self._file:
-            if self._verbose:
-                self.log(f'closing file handle')
             self._file.close()
         self._file = None
         if self._own_ctx:
