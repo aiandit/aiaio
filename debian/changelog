@@ -1,3 +1,10 @@
+pyaio (24.12.1-1) unstable; urgency=medium
+
+  * Cosmetics
+  * Search lib under different names, better global cleanup
+
+ -- Johannes Willkomm <johannes.willkomm@googlemail.com>  Tue, 03 Dec 2024 18:47:52 +0100
+
 pyaio (24.11.30-2) unstable; urgency=medium
 
   * Simplify and cleanup
