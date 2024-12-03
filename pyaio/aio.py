@@ -95,7 +95,13 @@ IOCBpp = POINTER(IOCBp)
 IO_EVENTp = POINTER(IO_EVENT)
 IO_EVENTpp = POINTER(IO_EVENTp)
 
-libaio = CDLL('libaio.so.1t64')
+libnames = ['libaio.so.1t64', 'libaio.so.1']
+for n in libnames:
+    try:
+        libaio = CDLL(n)
+        break
+    except Exception:
+        pass
 
 libaio.io_setup.argtypes = [c_int, IO_CONTEXTp]
 libaio.io_setup.restype = c_int
@@ -220,8 +226,6 @@ class IOContext:
                 raise OSError(f'io_pgetevents: {getename(-rc)}')
             elif rc == 0:
                 await asyncio.sleep(1e-3)
-        if self._verbose:
-            self.log(f'task io_pgetevents exiting')
 
     async def run_getevents_loop(self):
         try:
@@ -230,7 +234,7 @@ class IOContext:
             if self._verbose:
                 self.log(f'task pgetevents cancelled')
         except Exception as ex:
-            self.log(f'task pgetevents raise exception {ex}')
+            self.log(f'task pgetevents raised exception {ex}')
             raise ex
 
     async def notify_cbcomplete_task(self, cbid, res, res2):
@@ -244,7 +248,7 @@ class IOContext:
         async with asyncio.TaskGroup() as gr:
             [gr.create_task(self.notify_cbcomplete_task(*entry)) for entry in evlist]
 
-    async def start_aio_suspend_loop(self):
+    async def start_getevents_loop(self):
         self._loops += 1
         if self._loop:
             if self._loop != asyncio.get_event_loop():
@@ -254,11 +258,9 @@ class IOContext:
         self._loop = asyncio.get_event_loop()
         if self._task is None:
             self._task = asyncio.create_task(self.run_getevents_loop())
-            if self._verbose:
-                self.log(f'io_pgetevents task starting')
 
     async def start(self):
-        await self.start_aio_suspend_loop()
+        await self.start_getevents_loop()
 
     def releaseThread(self):
         if self._task is not None:
@@ -278,6 +280,13 @@ class IOContext:
 
 
 global_context = IOContext(1000)
+global_contexts = [global_context]
+
+
+async def release_globals():
+    global global_contexts
+    for gctx in global_contexts:
+        await gctx.release()
 
 
 class AIO:
@@ -285,9 +294,10 @@ class AIO:
     _fname = None
     _mode = None
     _verbose = 0
+    ctx = None
 
     def __init__(self, fname, mode, numRequests=10000, io_context=None, **kw):
-        global global_context
+        global global_context, global_contexts
         self._fname = fname
         self._mode = mode
         self._opts = kw
@@ -296,6 +306,8 @@ class AIO:
         else:
             if numRequests > global_context.numRequests:
                 global_context = IOContext(numRequests)
+                global_contexts += [global_context]
+                #self.log(f'AIO: new context: {len(global_contexts)} now')
             self.ctx = global_context
 
     def __del__(self):
@@ -350,8 +362,6 @@ class AIO:
         return cb['code']
 
     def _fsync(self, op):
-        if self._file.closed:
-            raise BaseException('File closed already')
         cb = IOCB()
         cb.aio_fildes = self._file.fileno()
         cb.aio_lio_opcode = op
