@@ -1,4 +1,4 @@
-__version__ = '24.11.30'
+__version__ = '24.12.6'
 
 from .pyaio import AIOFile, LineReader
-from .aio import IOContext
+from .iocontext_mt import IOContextMT as IOContext
