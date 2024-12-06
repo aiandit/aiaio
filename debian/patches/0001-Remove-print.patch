@@ -1,0 +1,28 @@
+From: Johannes Willkomm <johannes@johannes-willkomm.de>
+Date: Fri, 6 Dec 2024 19:47:38 +0100
+Subject: Remove print
+
+---
+ pyaio/iocontext_mt.py | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/pyaio/iocontext_mt.py b/pyaio/iocontext_mt.py
+index 11f64ee..ec9088d 100644
+--- a/pyaio/iocontext_mt.py
++++ b/pyaio/iocontext_mt.py
+@@ -67,12 +67,12 @@ class IOContextMT(IOContext):
+                 self.log(f'io_pgetevents thread started')
+ 
+     def waitForThread(self):
+-        print(f'wait for thread')
++        #print(f'wait for thread')
+         self._thread.join()
+-        print(f'thread joined')
++        #print(f'thread joined')
+ 
+     def releaseThread(self):
+-        print(f'releaseThread')
++        #print(f'releaseThread')
+         self._thread_stop = True
+ 
+     async def awaitThread(self):
