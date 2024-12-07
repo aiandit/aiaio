@@ -1,8 +1,9 @@
-pyaio (24.12.6-1) unstable; urgency=medium
+pyaio (24.12.7-1) unstable; urgency=medium
 
+  * Rename to aiaio
   * Move io context to sep. module, threading io context
 
- -- Johannes Willkomm <johannes.willkomm@googlemail.com>  Fri, 06 Dec 2024 19:42:31 +0100
+ -- Johannes Willkomm <johannes.willkomm@googlemail.com>  Sat, 07 Dec 2024 16:00:14 +0100
 
 pyaio (24.12.1-1) unstable; urgency=medium
 
