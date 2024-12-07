@@ -12,7 +12,7 @@ allclean:
 	git clean -xfd
 
 uninstall:
-	$(PYTHON) -m pip uninstall -y pyaio
+	$(PYTHON) -m pip uninstall -y aiaio
 
 install:
 	$(PYTHON) -m pip install .
