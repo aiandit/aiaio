@@ -1,4 +1,4 @@
-pyaio (24.12.7-1) unstable; urgency=medium
+aiaio (24.12.7-1) unstable; urgency=medium
 
   * Rename to aiaio
   * Move io context to sep. module, threading io context
