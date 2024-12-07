@@ -10,9 +10,9 @@ import binascii
 
 sys.path = ['.'] + sys.path
 
-from pyaio import AIOFile, LineReader, IOContext
-from pyaio import aio as aiomodule
-from pyaio.pyaio import aenumerate
+from aiaio import AIOFile, LineReader, IOContext
+from aiaio import aio as aiomodule
+from aiaio.aiaio import aenumerate
 
 
 # cf. https://stackoverflow.com/questions/77242992/pytest-asyncio-howto-await-in-setup-and-teardown

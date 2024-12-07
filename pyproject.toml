@@ -1,5 +1,5 @@
 [project]
-name = "pyaio"
+name = "aiaio"
 authors = [
   { name="Johannes Willkomm", email="jwillkomm@ai-and-it.de" },
 ]
@@ -20,15 +20,15 @@ test = ["pytest", "tox"]
 all = ["build", "pytest", "tox"]
 
 [project.urls]
-"Homepage" = "https://github.com/aiandit/pyaio"
-"Bug Tracker" = "https://github.com/aiandit/pyaio/issues"
+"Homepage" = "https://github.com/aiandit/aiaio"
+"Bug Tracker" = "https://github.com/aiandit/aiaio/issues"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 #[project.scripts]
-#msgl = "pyaio.cmdline:run"
+#msgl = "aiaio.cmdline:run"
 
 [tool.hatch.version]
-path = "pyaio/__init__.py"
+path = "aiaio/__init__.py"
