@@ -13,6 +13,7 @@ class IOContextMT(IOContext):
     def __init__(self, numRequests=100, **kw):
         super().__init__(numRequests=numRequests, **kw)
         self._thread_empty = threading.Event()
+        self._thread_stopped = asyncio.Event()
 
     def __str__(self):
         return f'IOContextMT({self._name}, n={self.numRequests})'
@@ -28,7 +29,7 @@ class IOContextMT(IOContext):
         sigmask = SIGSET()
         libaio.sigfillset(sigmask)
 
-        while not self._thread_stop:
+        while not self._thread_stop or len(self._readsDict) > 0:
             self.log(f'io_pgetevents...')
             if len(self._readsDict) == 0:
                 timeout.tv_sec = 0
@@ -49,6 +50,9 @@ class IOContextMT(IOContext):
                     self._thread_empty.wait()
         if self._verbose:
             self.log(f'task io_pgetevents exiting')
+        self.notify_thread_exit()
+        if self._verbose:
+            self.log(f'task io_pgetevents exiting(II)')
 
     def run_getevents_loop(self):
         try:
@@ -74,9 +78,23 @@ class IOContextMT(IOContext):
             if self._verbose:
                 self.log(f'io_pgetevents thread started')
 
-    def waitForThread(self):
-        if self._verbose:
-            self.log(f'wait for thread')
+    async def notify_thread_exit_task(self):
+        self.log(f'set thread stopped event')
+        self._thread_stopped.set()
+        return 0
+
+    def notify_thread_exit(self):
+         future = asyncio.run_coroutine_threadsafe(self.notify_thread_exit_task(), loop=self._loop)
+         res = future.result()
+         assert res == 0
+         return res
+
+    async def waitForThread(self):
+        while self._thread.is_alive():
+            if self._verbose:
+                self.log(f'wait for thread...')
+            self._thread_empty.set()
+            await asyncio.sleep(1e-6)
         self._thread.join()
         if self._verbose:
             self.log(f'thread joined')
@@ -89,7 +107,10 @@ class IOContextMT(IOContext):
 
     async def awaitThread(self):
         if self._thread is not None:
-            await asyncio.to_thread(self.waitForThread)
+            print('wait for thread stop')
+            await self._thread_stopped.wait()
+            print('Thread has stopped')
+            await self.waitForThread()
         self._thread = None
         self._loop = None
 

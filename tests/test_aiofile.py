@@ -75,8 +75,11 @@ class TestCases1():
         tasks = [ aio.write(i.to_bytes(4) + data, offset=(i+1)*len(data)) for i in range(5000) ]
         print('tasks issued')
         results = await asyncio.gather(*tasks)
+        print('tasks complete')
         await aio.close()
+        print('aio file closed')
         del aio
+        print('aio file deleted')
 
     async def test_aiofile04(self):
         aio = AIOFile('example.txt', 'r+')
@@ -88,8 +91,11 @@ class TestCases1():
         tasks = [ aio.read(12, offset=(i+1)*len(data)) for i in range(5000) ]
         print('tasks issued')
         results = await asyncio.gather(*tasks)
+        print('tasks complete')
         await aio.close()
+        print('aio file closed')
         del aio
+        print('aio file deleted')
 
         print(len(results))
         for i in range(len(results)):
