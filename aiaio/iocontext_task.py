@@ -197,6 +197,9 @@ class IOContext:
         print(f'{time.time() - global_t0: 12.3f} {self} {msg}')
         sys.stdout.flush()
 
+    def _io_submit_handler(self, cb):
+        pass
+
     def _io_submit(self, cb):
         rc = libaio.io_submit(self._ctx, 1, pointer(cb))
         if rc < 0:
@@ -205,6 +208,7 @@ class IOContext:
         if rc == 1:
             cbid = addressof(cb)
             self._readsDict[cbid] = item = dict(cb=cb,cond=asyncio.Condition())
+            self._io_submit_handler(cb)
             return item
         else:
             self.log(f'io_submit returned wrong code: {rc}')
@@ -257,7 +261,7 @@ class IOContext:
         if self._loop:
             if self._loop != asyncio.get_event_loop():
                 if self._verbose:
-                    print('Loop has changed!')
+                    self.log('Loop has changed!')
                 self._task = None
         self._loop = asyncio.get_event_loop()
         if self._task is None:

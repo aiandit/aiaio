@@ -23,7 +23,7 @@ class AIO:
     _file = None
     _fname = None
     _mode = None
-    _verbose = 0
+    _verbose = 1
     ctx = None
 
     def __init__(self, fname, mode, numRequests=10000, io_context=None, **kw):

@@ -12,6 +12,7 @@ class IOContextMT(IOContext):
 
     def __init__(self, numRequests=100, **kw):
         super().__init__(numRequests=numRequests, **kw)
+        self._thread_empty = threading.Event()
 
     def __str__(self):
         return f'IOContextMT({self._name}, n={self.numRequests})'
@@ -29,6 +30,10 @@ class IOContextMT(IOContext):
 
         while not self._thread_stop:
             self.log(f'io_pgetevents...')
+            if len(self._readsDict) == 0:
+                timeout.tv_sec = 0
+            else:
+                timeout.tv_sec = 1
             rc = libaio.io_pgetevents(self._ctx, 1, nevents, events, timeout, sigmask)
             self.log(f'io_pgetevents = {rc}')
             if rc > 0:
@@ -38,7 +43,10 @@ class IOContextMT(IOContext):
                 self.log(f'Error io_pgetevents: {rc} {getename(-rc)}')
                 raise OSError(f'io_pgetevents: {getename(-rc)}')
             elif rc == 0:
-                pass
+                if len(self._readsDict) == 0 and not self._thread_stop:
+                    self.log(f'{rc}=0 and no pending: go to sleep')
+                    self._thread_empty.clear()
+                    self._thread_empty.wait()
         if self._verbose:
             self.log(f'task io_pgetevents exiting')
 
@@ -67,13 +75,17 @@ class IOContextMT(IOContext):
                 self.log(f'io_pgetevents thread started')
 
     def waitForThread(self):
-        print(f'wait for thread')
+        if self._verbose:
+            self.log(f'wait for thread')
         self._thread.join()
-        print(f'thread joined')
+        if self._verbose:
+            self.log(f'thread joined')
 
     def releaseThread(self):
-        print(f'releaseThread')
+        if self._verbose:
+            self.log(f'releaseThread')
         self._thread_stop = True
+        self._thread_empty.set()
 
     async def awaitThread(self):
         if self._thread is not None:
@@ -91,6 +103,11 @@ class IOContextMT(IOContext):
 
     async def __aexit__(self, *args):
         return await self.release()
+
+    def _io_submit_handler(self, cb):
+        if self._verbose:
+            self.log(f'set event')
+        self._thread_empty.set()
 
 
 global_context_mt = IOContextMT(numRequests=1000)
