@@ -16,7 +16,7 @@ from aiaio.aiaio import aenumerate
 
 
 # cf. https://stackoverflow.com/questions/77242992/pytest-asyncio-howto-await-in-setup-and-teardown
-@pytest_asyncio.fixture(loop_scope="class", scope="class")
+@pytest_asyncio.fixture(loop_scope="class", scope="class", autouse=True)
 async def per_class_fixture():
     yield True
     print('per_class_fixture release global context')
