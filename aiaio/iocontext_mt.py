@@ -30,13 +30,15 @@ class IOContextMT(IOContext):
         libaio.sigfillset(sigmask)
 
         while not self._thread_stop or len(self._readsDict) > 0:
-            self.log(f'io_pgetevents...')
+            if self._verbose:
+                self.log(f'io_pgetevents...')
             if len(self._readsDict) == 0:
                 timeout.tv_sec = 0
             else:
                 timeout.tv_sec = 1
             rc = libaio.io_pgetevents(self._ctx, 1, nevents, events, timeout, sigmask)
-            self.log(f'io_pgetevents = {rc}')
+            if self._verbose:
+                self.log(f'io_pgetevents = {rc}')
             if rc > 0:
                 evlist = [(addressof(events[i].obj.contents), events[i].res, events[i].res2) for i in range(rc)]
                 self.notify_cbcomplete_list(evlist)
@@ -45,7 +47,8 @@ class IOContextMT(IOContext):
                 raise OSError(f'io_pgetevents: {getename(-rc)}')
             elif rc == 0:
                 if len(self._readsDict) == 0 and not self._thread_stop:
-                    self.log(f'{rc}=0 and no pending: go to sleep')
+                    if self._verbose:
+                        self.log(f'{rc}=0 and no pending: go to sleep')
                     self._thread_empty.clear()
                     self._thread_empty.wait()
         if self._verbose:
@@ -107,7 +110,8 @@ class IOContextMT(IOContext):
         self._thread_empty.set()
 
     async def awaitThread(self):
-        self.log(f'await thread')
+        if self._verbose:
+            self.log(f'await thread')
         if self._thread is not None:
             while self._thread.is_alive():
                 if self._verbose:
@@ -121,7 +125,8 @@ class IOContextMT(IOContext):
         self._loop = None
 
     async def release(self):
-        self.log(f'release')
+        if self._verbose:
+            self.log(f'release')
         self.releaseThread()
         await self.awaitThread()
 

@@ -12,18 +12,15 @@ global_t0 = time.time()
 
 
 async def release_globals():
-    global global_contexts
     for i, gctx in enumerate(global_contexts):
-        print(f'release IO ctx nr. {i}/{len(global_contexts)}: {gctx}')
         await gctx.release()
-        print(f'released IO ctx nr. {i}/{len(global_contexts)}: {gctx}')
 
 
 class AIO:
     _file = None
     _fname = None
     _mode = None
-    _verbose = 1
+    _verbose = 0
     ctx = None
 
     def __init__(self, fname, mode, numRequests=10000, io_context=None, **kw):

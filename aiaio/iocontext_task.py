@@ -154,7 +154,7 @@ class IOContext:
     _readsDict = {}
     _id = 0
     _maxbatch = 1000
-    _verbose = 1
+    _verbose = 0
     _task = None
     _loop = None
     _loops = 0
@@ -274,8 +274,8 @@ class IOContext:
         await self.start_aio_suspend_loop()
 
     def releaseThread(self):
-        self.log(f'releaseThread')
         if self._task is not None:
+            self.log(f'releaseThread')
             self._task.cancel()
             self._task = None
         self._loop = None
