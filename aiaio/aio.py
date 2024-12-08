@@ -5,9 +5,7 @@ import asyncio
 from .iocontext_task import c_uint8, IOCB
 from .iocontext_task import IO_CMD_PREAD, IO_CMD_PWRITE, IO_CMD_FSYNC, IO_CMD_FDSYNC
 
-from .iocontext_task import global_contexts
-
-from .iocontext_mt import IOContextMT as IOContext, global_context_mt as global_context
+from .iocontext_mt import IOContextMT as IOContext, global_context_mt as global_context, global_contexts_mt as global_contexts
 
 
 global_t0 = time.time()
@@ -15,8 +13,10 @@ global_t0 = time.time()
 
 async def release_globals():
     global global_contexts
-    for gctx in global_contexts:
+    for i, gctx in enumerate(global_contexts):
+        print(f'release IO ctx nr. {i}/{len(global_contexts)}: {gctx}')
         await gctx.release()
+        print(f'released IO ctx nr. {i}/{len(global_contexts)}: {gctx}')
 
 
 class AIO:

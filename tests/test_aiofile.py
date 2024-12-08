@@ -26,7 +26,7 @@ async def per_class_fixture():
 @pytest.mark.asyncio(loop_scope="class")
 class TestCases1():
 
-    async def test_upper(self, per_class_fixture):
+    async def test_upper(self):
         assert 'foo'.upper() == 'FOO'
 
     async def test_isupper(self):
@@ -190,7 +190,7 @@ class TestCases1():
 @pytest.mark.asyncio(loop_scope="class")
 class TestCases2:
 
-    async def test_upper(self, per_class_fixture):
+    async def test_upper(self):
         assert 'foo'.upper() == 'FOO'
 
     async def test_aiofile01(self):
@@ -248,11 +248,13 @@ class TestCases2:
 @pytest.mark.asyncio(loop_scope="class")
 class TestCases3:
 
-    async def test_upper(self, per_class_fixture):
+    async def test_upper(self):
         assert 'foo'.upper() == 'FOO'
 
     async def test_aiofile01(self):
-        async with AIOFile('example1.txt', 'r+', numRequests=100) as aio1:
+        async with AIOFile('example1.txt', 'r+', numRequests=10) as aio1:
             r1 = await aio1.read(8, offset=0)
-        async with AIOFile('example2.txt', 'r+', numRequests=10000) as aio2:
+        print(f'file1 closed')
+        async with AIOFile('example2.txt', 'r+', numRequests=10) as aio2:
             r2 = await aio2.read(8, offset=0)
+        print(f'file2 closed')

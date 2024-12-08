@@ -178,6 +178,7 @@ class IOContext:
         assert self._task is None
         self.releaseThread()
         self.closectx()
+        self.numRequests = -1
 
     def closectx(self):
         if self._ctx:
@@ -273,12 +274,14 @@ class IOContext:
         await self.start_aio_suspend_loop()
 
     def releaseThread(self):
+        self.log(f'releaseThread')
         if self._task is not None:
             self._task.cancel()
             self._task = None
         self._loop = None
 
     async def release(self):
+        self.log(f'release')
         self.releaseThread()
 
     async def __aenter__(self):

@@ -79,7 +79,8 @@ class IOContextMT(IOContext):
                 self.log(f'io_pgetevents thread started')
 
     async def notify_thread_exit_task(self):
-        self.log(f'set thread stopped event')
+        if self._verbose:
+            self.log(f'set thread stopped event')
         self._thread_stopped.set()
         return 0
 
@@ -92,9 +93,9 @@ class IOContextMT(IOContext):
     async def waitForThread(self):
         while self._thread.is_alive():
             if self._verbose:
-                self.log(f'wait for thread...')
+                self.log(f'wait for thread (II)...')
             self._thread_empty.set()
-            await asyncio.sleep(1e-6)
+            await asyncio.sleep(1e-3)
         self._thread.join()
         if self._verbose:
             self.log(f'thread joined')
@@ -106,15 +107,21 @@ class IOContextMT(IOContext):
         self._thread_empty.set()
 
     async def awaitThread(self):
+        self.log(f'await thread')
         if self._thread is not None:
-            print('wait for thread stop')
-            await self._thread_stopped.wait()
-            print('Thread has stopped')
+            while self._thread.is_alive():
+                if self._verbose:
+                    self.log(f'wait for thread (I)...')
+                self._thread_empty.set()
+                await asyncio.sleep(1e-3)
+            if self._verbose:
+                print('Thread has stopped')
             await self.waitForThread()
         self._thread = None
         self._loop = None
 
     async def release(self):
+        self.log(f'release')
         self.releaseThread()
         await self.awaitThread()
 
@@ -132,3 +139,4 @@ class IOContextMT(IOContext):
 
 
 global_context_mt = IOContextMT(numRequests=1000)
+global_contexts_mt = [global_context_mt]
