@@ -48,9 +48,6 @@ class AIO:
         print(f'{time.time() - global_t0: 12.3f} {self} {msg}')
         sys.stdout.flush()
 
-    def _showcb(self, cb):
-        showcb(self.ctx._ctx, cb, SIGSET(), IO_EVENT(), TIMESPEC())
-
     def _read(self, n, offset=0):
         indata = (c_uint8 * n)()
         cb = IOCB()
