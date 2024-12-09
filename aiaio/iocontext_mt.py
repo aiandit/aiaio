@@ -2,7 +2,7 @@ from .iocontext_task import IOContext
 import threading
 import asyncio
 
-from .iocontext_task import IO_EVENT, TIMESPEC, SIGSET, libaio, addressof
+from .iocontext_task import IO_EVENT, TIMESPEC, SIGSET, libaio, addressof, getename
 
 
 class IOContextMT(IOContext):

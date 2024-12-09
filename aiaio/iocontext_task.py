@@ -133,17 +133,9 @@ try:
     libmyaio.my_io_info.argtypes = [IO_CONTEXTp, IOCBp, SIGSETp, IO_EVENTp, IO_EVENTpp, TIMESPECp]
     libmyaio.my_io_info.restype = c_int
 
-    libmyaio.my_io_event_info.argtypes = [IO_EVENTp]
-    libmyaio.my_io_event_info.restype = c_int
-
-    libmyaio.my_io_getevents.argtypes = [IO_CONTEXT, c_long, c_long, IO_EVENTp, TIMESPECp, SIGSETp]
-    libmyaio.my_io_getevents.restype = c_int
-
     def showcb(ctx, cb, sigset=None, event=None, timespec=None):
         libmyaio.my_io_info(ctx, cb, sigset, event, None, timespec)
 
-    def showevent(event):
-        libmyaio.my_io_event_info(event)
 
 except BaseException as ex:
     pass
